@@ -69,19 +69,21 @@ public class AuthenticationSuccessListenerTest {
     private UserEntity userEntity;
 
     private static final String USERSOURCE = "usersource";
+    private static final String USERSOURCEID = "usersourceid";
     private static final String USERNAME = "username";
 
     @Test
     public void shouldConnectFoundUser() {
         when(eventMock.getAuthentication()).thenReturn(authenticationMock);
         when(authenticationMock.getPrincipal()).thenReturn(userDetailsMock);
-        when(userDetailsMock.getUsername()).thenReturn(USERNAME);
+        when(userDetailsMock.getSource()).thenReturn(USERSOURCE);
+        when(userDetailsMock.getSourceId()).thenReturn(USERSOURCEID);
         when(userServiceMock.create(any())).thenReturn(userEntity);
-        when(userServiceMock.findBySource(USERSOURCE, userDetailsMock.getUsername(), false)).thenReturn(new UserEntity());
+        when(userServiceMock.findBySource(userDetailsMock.getSource(), userDetailsMock.getSourceId(), false)).thenReturn(new UserEntity());
 
         listener.onApplicationEvent(eventMock);
 
-        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getUsername(), false);
+        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getSourceId(), false);
         verify(userServiceMock, never()).create(any(NewExternalUserEntity.class), anyBoolean());
         verify(userServiceMock, times(1)).connect(userDetailsMock.getUsername());
     }
@@ -91,13 +93,15 @@ public class AuthenticationSuccessListenerTest {
         when(eventMock.getAuthentication()).thenReturn(authenticationMock);
         when(authenticationMock.getPrincipal()).thenReturn(userDetailsMock);
         when(userDetailsMock.getUsername()).thenReturn(USERNAME);
+        when(userDetailsMock.getSource()).thenReturn(USERSOURCE);
+        when(userDetailsMock.getSourceId()).thenReturn(USERSOURCEID);
         when(authenticationMock.getAuthorities()).thenReturn(null);
-        when(userServiceMock.findBySource(USERSOURCE, userDetailsMock.getUsername(), false)).thenThrow(UserNotFoundException.class);
+        when(userServiceMock.findBySource(userDetailsMock.getSource(), userDetailsMock.getSourceId(), false)).thenThrow(UserNotFoundException.class);
         when(userServiceMock.create(any(NewExternalUserEntity.class), eq(true))).thenReturn(userEntity);
 
         listener.onApplicationEvent(eventMock);
 
-        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getUsername(), false);
+        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getSourceId(), false);
         verify(userServiceMock, times(1)).create(any(NewExternalUserEntity.class), eq(true));
         verify(userServiceMock, times(1)).connect(userDetailsMock.getUsername());
     }
@@ -109,7 +113,9 @@ public class AuthenticationSuccessListenerTest {
         Collection authorities = Collections.singleton(
                 new SimpleGrantedAuthority("ROLE"));
         when(authenticationMock.getAuthorities()).thenReturn(authorities);
-        when(userServiceMock.findBySource(USERSOURCE, userDetailsMock.getUsername(), false)).thenThrow(UserNotFoundException.class);
+        when(userDetailsMock.getSource()).thenReturn(USERSOURCE);
+        when(userDetailsMock.getSourceId()).thenReturn(USERSOURCEID);
+        when(userServiceMock.findBySource(USERSOURCE, userDetailsMock.getSourceId(), false)).thenThrow(UserNotFoundException.class);
         RoleEntity roleEntity = mock(RoleEntity.class);
         when(roleEntity.getName()).thenReturn("ROLE");
         when(roleServiceMock.findById(RoleScope.MANAGEMENT, "ROLE")).thenReturn(roleEntity);
@@ -118,7 +124,7 @@ public class AuthenticationSuccessListenerTest {
 
         listener.onApplicationEvent(eventMock);
 
-        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getUsername(), false);
+        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getSourceId(), false);
         verify(userServiceMock, times(1)).create(any(NewExternalUserEntity.class), eq(false));
         verify(membershipServiceMock, times(1)).
                 addOrUpdateMember(
@@ -141,7 +147,9 @@ public class AuthenticationSuccessListenerTest {
                 new SimpleGrantedAuthority("MANAGEMENT:ROLE1"),
                 new SimpleGrantedAuthority("PORTAL:ROLE2"));
         when(authenticationMock.getAuthorities()).thenReturn(authorities);
-        when(userServiceMock.findBySource(USERSOURCE, userDetailsMock.getUsername(), false)).thenThrow(UserNotFoundException.class);
+        when(userDetailsMock.getSource()).thenReturn(USERSOURCE);
+        when(userDetailsMock.getSourceId()).thenReturn(USERSOURCEID);
+        when(userServiceMock.findBySource(USERSOURCE, userDetailsMock.getSourceId(), false)).thenThrow(UserNotFoundException.class);
         RoleEntity roleEntity1 = mock(RoleEntity.class);
         when(roleEntity1.getName()).thenReturn("ROLE1");
         RoleEntity roleEntity2 = mock(RoleEntity.class);
@@ -152,7 +160,7 @@ public class AuthenticationSuccessListenerTest {
 
         listener.onApplicationEvent(eventMock);
 
-        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getUsername(), false);
+        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getSourceId(), false);
         verify(userServiceMock, times(1)).create(any(NewExternalUserEntity.class), eq(false));
         verify(membershipServiceMock, times(1)).
                 addOrUpdateMember(
@@ -175,7 +183,9 @@ public class AuthenticationSuccessListenerTest {
                 new SimpleGrantedAuthority("ROLE"),
                 new SimpleGrantedAuthority("PORTAL:ROLE2"));
         when(authenticationMock.getAuthorities()).thenReturn(authorities);
-        when(userServiceMock.findBySource(USERSOURCE, userDetailsMock.getUsername(), false)).thenThrow(UserNotFoundException.class);
+        when(userDetailsMock.getSource()).thenReturn(USERSOURCE);
+        when(userDetailsMock.getSourceId()).thenReturn(USERSOURCEID);
+        when(userServiceMock.findBySource(USERSOURCE, userDetailsMock.getSourceId(), false)).thenThrow(UserNotFoundException.class);
         RoleEntity roleEntity1 = mock(RoleEntity.class);
         when(roleEntity1.getName()).thenReturn("ROLE");
         RoleEntity roleEntity2 = mock(RoleEntity.class);
@@ -186,7 +196,7 @@ public class AuthenticationSuccessListenerTest {
 
         listener.onApplicationEvent(eventMock);
 
-        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getUsername(), false);
+        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getSourceId(), false);
         verify(userServiceMock, times(1)).create(any(NewExternalUserEntity.class), eq(false));
         verify(membershipServiceMock, times(1)).
                 addOrUpdateMember(
@@ -205,16 +215,18 @@ public class AuthenticationSuccessListenerTest {
     public void shouldCreateUserWithAdminRole() {
         when(eventMock.getAuthentication()).thenReturn(authenticationMock);
         when(authenticationMock.getPrincipal()).thenReturn(userDetailsMock);
+        when(userDetailsMock.getSource()).thenReturn(USERSOURCE);
+        when(userDetailsMock.getSourceId()).thenReturn(USERSOURCEID);
         Collection authorities = Arrays.asList(
                 new SimpleGrantedAuthority("MANAGEMENT:ROLE1"),
                 new SimpleGrantedAuthority("ADMIN"),
                 new SimpleGrantedAuthority("PORTAL:ROLE2"));
         when(authenticationMock.getAuthorities()).thenReturn(authorities);
-        when(userServiceMock.findBySource(USERSOURCE, userDetailsMock.getUsername(), false)).thenThrow(UserNotFoundException.class);
+        when(userServiceMock.findBySource(userDetailsMock.getSource(), userDetailsMock.getSourceId(), false)).thenThrow(UserNotFoundException.class);
         when(userServiceMock.create(any(NewExternalUserEntity.class), eq(false))).thenReturn(userEntity);
         listener.onApplicationEvent(eventMock);
 
-        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getUsername(), false);
+        verify(userServiceMock, times(1)).findBySource(USERSOURCE, userDetailsMock.getSourceId(), false);
         verify(userServiceMock, times(1)).create(any(NewExternalUserEntity.class), eq(false));
         verify(membershipServiceMock, times(1)).
                 addOrUpdateMember(

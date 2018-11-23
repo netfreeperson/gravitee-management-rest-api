@@ -202,21 +202,21 @@ public class UserServiceImpl extends AbstractService implements UserService {
     }
 
     @Override
-    public UserEntity findBySource(String sourceId, String userId, boolean loadRoles) {
+    public UserEntity findBySource(String source, String sourceId, boolean loadRoles) {
         try {
-            LOGGER.debug("Find user by source[{}] user[{}]", sourceId, userId);
+            LOGGER.debug("Find user by source[{}] user[{}]", source, sourceId);
 
-            Optional<User> optionalUser = userRepository.findBySource(sourceId, userId);
+            Optional<User> optionalUser = userRepository.findBySource(source, sourceId);
 
             if (optionalUser.isPresent()) {
                 return convert(optionalUser.get(), loadRoles);
             }
 
             // Should never happen
-            throw new UserNotFoundException(userId);
+            throw new UserNotFoundException(sourceId);
         } catch (TechnicalException ex) {
-            LOGGER.error("An error occurs while trying to find user using source[{}], user[{}]", sourceId, userId, ex);
-            throw new TechnicalManagementException("An error occurs while trying to find user using source " + sourceId + ':' + userId, ex);
+            LOGGER.error("An error occurs while trying to find user using source[{}], user[{}]", source, sourceId, ex);
+            throw new TechnicalManagementException("An error occurs while trying to find user using source " + source + ':' + sourceId, ex);
         }
     }
 

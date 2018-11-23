@@ -33,7 +33,7 @@ public interface UserService {
     UserEntity connect(String userId);
     UserEntity findById(String id);
     UserEntity findByIdWithRoles(String id);
-    UserEntity findBySource(String sourceId, String userId, boolean loadRoles);
+    UserEntity findBySource(String source, String sourceId, boolean loadRoles);
     Set<UserEntity> findByIds(List<String> ids);
     UserEntity create(RegisterUserEntity registerUserEntity);
     UserEntity create(NewExternalUserEntity newExternalUserEntity, boolean addDefaultRole);

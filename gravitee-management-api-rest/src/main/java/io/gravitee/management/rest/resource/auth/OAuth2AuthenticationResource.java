@@ -215,6 +215,22 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
         try {
             UserEntity registeredUser = userService.findBySource(socialProvider.getId(), attrs.get(SocialIdentityProviderEntity.UserProfile.ID), false);
             userId = registeredUser.getId();
+
+            // User refresh
+            UpdateUserEntity user = new UpdateUserEntity();
+
+            if (attrs.get(SocialIdentityProviderEntity.UserProfile.LASTNAME) != null) {
+                user.setLastname(attrs.get(SocialIdentityProviderEntity.UserProfile.LASTNAME));
+            }
+            if (attrs.get(SocialIdentityProviderEntity.UserProfile.FIRSTNAME) != null) {
+                user.setFirstname(attrs.get(SocialIdentityProviderEntity.UserProfile.FIRSTNAME));
+            }
+            if (attrs.get(SocialIdentityProviderEntity.UserProfile.PICTURE) != null) {
+                user.setPicture(attrs.get(SocialIdentityProviderEntity.UserProfile.PICTURE));
+            }
+
+            UserEntity updatedUser = userService.update(userId, user);
+
         } catch (UserNotFoundException unfe) {
             final NewExternalUserEntity newUser = new NewExternalUserEntity();
             newUser.setEmail(email);
@@ -251,27 +267,12 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
             }
         }
 
-        // User refresh
-        UpdateUserEntity user = new UpdateUserEntity();
-
-        if (attrs.get(SocialIdentityProviderEntity.UserProfile.LASTNAME) != null) {
-            user.setLastname(attrs.get(SocialIdentityProviderEntity.UserProfile.LASTNAME));
-        }
-        if (attrs.get(SocialIdentityProviderEntity.UserProfile.FIRSTNAME) != null) {
-            user.setFirstname(attrs.get(SocialIdentityProviderEntity.UserProfile.FIRSTNAME));
-        }
-        if (attrs.get(SocialIdentityProviderEntity.UserProfile.PICTURE) != null) {
-            user.setPicture(attrs.get(SocialIdentityProviderEntity.UserProfile.PICTURE));
-        }
-
-        UserEntity updatedUser = userService.update(userId, user);
-
         //set user to Authentication Context
-        UserDetails userDetails = new UserDetails(updatedUser.getId(), "", Collections.emptyList());
+        UserDetails userDetails = new UserDetails(userId, "", Collections.emptyList());
         userDetails.setEmail(email);
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities()));
 
-        return connectUser(updatedUser.getId(), servletResponse);
+        return connectUser(userId, servletResponse);
     }
 
     private HashMap<String, String> getUserProfileAttrs(Map<String, String> userProfileMapping, String userInfo) {
@@ -390,7 +391,7 @@ public class OAuth2AuthenticationResource extends AbstractAuthenticationResource
 
                 if (mapping.getManagement() != null) {
                     try {
-                        RoleEntity roleEntity = roleService.findById(RoleScope.MANAGEMENT, mapping.getPortal());
+                        RoleEntity roleEntity = roleService.findById(RoleScope.MANAGEMENT, mapping.getManagement());
                         rolesToAdd.add(roleEntity);
                     } catch (RoleNotFoundException rnfe) {
                         LOGGER.error("Unable to create user, missing role in repository : {}", mapping.getManagement());

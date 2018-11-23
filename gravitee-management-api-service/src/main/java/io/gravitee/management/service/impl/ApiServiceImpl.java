@@ -780,7 +780,13 @@ public class ApiServiceImpl extends TransactionalService implements ApiService {
                 createdOrUpdatedApiEntity = update(apiEntity.getId(), importedApi);
                 members = membershipService.getMembers(MembershipReferenceType.API, apiEntity.getId(), RoleScope.API)
                         .stream()
-                        .map(member -> new MemberToImport(member.getEmail(), member.getRole())).collect(Collectors.toSet());
+                        .map(member -> {
+                            UserEntity userEntity = userService.findById(member.getId());
+                            if (userEntity != null) {
+                                return new MemberToImport(userEntity.getSource(), userEntity.getSourceId(), member.getRole());
+                            }
+                            return null;
+                        }).collect(Collectors.toSet());
             }
 
             // Read the whole definition
@@ -793,24 +799,25 @@ public class ApiServiceImpl extends TransactionalService implements ApiService {
 
                 for (final JsonNode memberNode : membersDefinition) {
                     MemberToImport memberEntity = objectMapper.readValue(memberNode.toString(), MemberToImport.class);
-                    Collection<SearchableUser> idpUsers = identityService.search(memberEntity.getUsername());
+                    try {
+                        UserEntity userEntity = userService.findBySource(memberEntity.getSource(), memberEntity.getSourceId(), false);
 
-                    if (!idpUsers.isEmpty()) {
-                        SearchableUser user = idpUsers.iterator().next();
-
-                        if (!members.contains(memberEntity)
+                        if (userEntity != null && !members.contains(memberEntity)
                                 || members.stream().anyMatch(m ->
-                                m.getUsername().equals(memberEntity.getUsername())
+                                m.getSource().equals(memberEntity.getSource())
+                                        && m.getSourceId().equals(memberEntity.getSourceId())
                                         && !m.getRole().equals(memberEntity.getRole()))) {
                             MemberEntity membership = membershipService.addOrUpdateMember(
                                     new MembershipService.MembershipReference(MembershipReferenceType.API, createdOrUpdatedApiEntity.getId()),
-                                    new MembershipService.MembershipUser(user.getId(), user.getReference()),
+                                    new MembershipService.MembershipUser(userEntity.getId(), null),
                                     new MembershipService.MembershipRole(RoleScope.API, memberEntity.getRole()));
                             if (SystemRole.PRIMARY_OWNER.name().equals(memberEntity.getRole())) {
                                 // Get the identifier of the primary owner
                                 memberAsPrimaryOwner = membership;
                             }
                         }
+                    } catch (UserNotFoundException unfe) {
+
                     }
                 }
 
@@ -1277,23 +1284,33 @@ public class ApiServiceImpl extends TransactionalService implements ApiService {
     }
 
     private static class MemberToImport {
-        private String username;
+        private String source;
+        private String sourceId;
         private String role;
 
         public MemberToImport() {
         }
 
-        public MemberToImport(String username, String role) {
-            this.username = username;
+        public MemberToImport(String source, String sourceId, String role) {
+            this.source = source;
+            this.sourceId = sourceId;
             this.role = role;
         }
 
-        public String getUsername() {
-            return username;
+        public String getSource() {
+            return source;
         }
 
-        public void setUsername(String username) {
-            this.username = username;
+        public void setSource(String source) {
+            this.source = source;
+        }
+
+        public String getSourceId() {
+            return sourceId;
+        }
+
+        public void setSourceId(String sourceId) {
+            this.sourceId = sourceId;
         }
 
         public String getRole() {
@@ -1311,12 +1328,14 @@ public class ApiServiceImpl extends TransactionalService implements ApiService {
 
             MemberToImport that = (MemberToImport) o;
 
-            return username.equals(that.username);
+            return source.equals(that.source) && sourceId.equals(that.sourceId);
         }
 
         @Override
         public int hashCode() {
-            return username.hashCode();
+            int result = source.hashCode();
+            result = 31 * result + sourceId.hashCode();
+            return result;
         }
     }
 }
