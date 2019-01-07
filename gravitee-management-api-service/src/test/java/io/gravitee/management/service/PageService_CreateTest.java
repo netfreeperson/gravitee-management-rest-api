@@ -84,7 +84,6 @@ public class PageService_CreateTest {
         when(page1.getOrder()).thenReturn(1);
         when(page1.getContent()).thenReturn(content);
 
-        when(pageRepository.findById(anyString())).thenReturn(Optional.empty());
         when(pageRepository.create(any())).thenReturn(page1);
 
         when(newPage.getName()).thenReturn(name);
@@ -93,7 +92,7 @@ public class PageService_CreateTest {
         when(newPage.getLastContributor()).thenReturn(contrib);
         when(newPage.getType()).thenReturn(io.gravitee.management.model.PageType.SWAGGER);
 
-        final PageEntity createdPage = pageService.createApiPage(API_ID, newPage);
+        final PageEntity createdPage = pageService.createPage(API_ID, newPage);
 
         verify(pageRepository).create(argThat(new ArgumentMatcher<Page>() {
             public boolean matches(Object argument) {
@@ -117,17 +116,6 @@ public class PageService_CreateTest {
         assertEquals(type, createdPage.getType());
     }
 
-    @Test(expected = PageAlreadyExistsException.class)
-    public void shouldNotCreateBecauseExists() throws TechnicalException {
-        final String name = "PAGE_NAME";
-        when(newPage.getName()).thenReturn(name);
-        when(pageRepository.findById(anyString())).thenReturn(Optional.of(new Page()));
-
-        pageService.createApiPage(API_ID, newPage);
-
-        verify(pageRepository, never()).create(any());
-    }
-
     @Test(expected = TechnicalManagementException.class)
     public void shouldNotCreateBecauseTechnicalException() throws TechnicalException {
         final String name = "PAGE_NAME";
@@ -136,7 +124,7 @@ public class PageService_CreateTest {
         when(pageRepository.findById(anyString())).thenReturn(Optional.empty());
         when(pageRepository.create(any(Page.class))).thenThrow(TechnicalException.class);
 
-        pageService.createApiPage(API_ID, newPage);
+        pageService.createPage(API_ID, newPage);
 
         verify(pageRepository, never()).create(any());
     }

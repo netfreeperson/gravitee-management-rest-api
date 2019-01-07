@@ -28,7 +28,6 @@ import io.gravitee.definition.model.EndpointGroup;
 import io.gravitee.definition.model.Path;
 import io.gravitee.definition.model.Proxy;
 import io.gravitee.definition.model.endpoint.HttpEndpoint;
-import io.gravitee.management.idp.api.identity.SearchableUser;
 import io.gravitee.management.model.*;
 import io.gravitee.management.model.EventType;
 import io.gravitee.management.model.PageType;
@@ -850,7 +849,7 @@ public class ApiServiceImpl extends TransactionalService implements ApiService {
                             build();
                     List<PageEntity> pageEntities = pageService.search(query);
                     if (pageEntities == null || pageEntities.isEmpty()) {
-                        pageService.createApiPage(createdOrUpdatedApiEntity.getId(), objectMapper.readValue(pageNode.toString(), NewPageEntity.class));
+                        pageService.createPage(createdOrUpdatedApiEntity.getId(), objectMapper.readValue(pageNode.toString(), NewPageEntity.class));
                     } else if (pageEntities.size() == 1) {
                         UpdatePageEntity updatePageEntity = objectMapper.readValue(pageNode.toString(), UpdatePageEntity.class);
                         pageService.update(pageEntities.get(0).getId(), updatePageEntity);

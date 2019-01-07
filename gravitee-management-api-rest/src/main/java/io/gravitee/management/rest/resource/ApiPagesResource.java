@@ -115,7 +115,7 @@ public class ApiPagesResource extends AbstractResource {
         int order = pageService.findMaxApiPageOrderByApi(api) + 1;
         newPageEntity.setOrder(order);
         newPageEntity.setLastContributor(getAuthenticatedUser());
-        PageEntity newPage = pageService.createApiPage(api, newPageEntity);
+        PageEntity newPage = pageService.createPage(api, newPageEntity);
         if (newPage != null) {
             return Response
                     .created(URI.create("/apis/" + api + "/pages/" + newPage.getId()))
@@ -153,6 +153,25 @@ public class ApiPagesResource extends AbstractResource {
     @Path("{page}")
     public ApiPageResource getApiPageResource() {
         return resourceContext.getResource(ApiPageResource.class);
+    }
+
+    @POST
+    @Path("/_import")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Import pages",
+            notes = "User must be ADMIN to use this service")
+    @ApiResponses({
+            @ApiResponse(code = 201, message = "Page successfully created", response = PageEntity.class),
+            @ApiResponse(code = 500, message = "Internal server error")})
+    @Permissions({
+            @Permission(value = RolePermission.API_DOCUMENTATION, acls = RolePermissionAction.CREATE)
+    })
+    public List<PageEntity> importFiles(
+            @PathParam("api") String api,
+            @ApiParam(name = "page", required = true) @Valid @NotNull NewPageEntity newPageEntity) {
+        newPageEntity.setLastContributor(getAuthenticatedUser());
+        return pageService.importDirectory(api, newPageEntity);
     }
 
     private boolean isDisplayable(ApiEntity api, boolean isPagePublished, List<String> excludedGroups) {

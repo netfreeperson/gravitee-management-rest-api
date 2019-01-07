@@ -117,8 +117,7 @@ public class PageServiceImpl extends TransactionalService implements PageService
 			Optional<Page> page = pageRepository.findById(pageId);
 
 			if (page.isPresent()) {
-				PageEntity pageEntity = convert(page.get());
-				return pageEntity;
+				return convert(page.get());
 			}
 
 			throw new PageNotFoundException(pageId);
@@ -179,15 +178,17 @@ public class PageServiceImpl extends TransactionalService implements PageService
 	}
 
 	@Override
-	public PageEntity createApiPage(String apiId, NewPageEntity newPageEntity) {
+	public PageEntity createPage(NewPageEntity newPageEntity) {
+		return this.createPage(null, newPageEntity);
+	}
+
+	@Override
+	public PageEntity createPage(String apiId, NewPageEntity newPageEntity) {
+
 		try {
 			logger.debug("Create page {} for API {}", newPageEntity, apiId);
 
 			String id = UUID.toString(UUID.random());
-			Optional<Page> checkPage = pageRepository.findById(id);
-			if (checkPage.isPresent()) {
-				throw new PageAlreadyExistsException(id);
-			}
 
             if (PageType.FOLDER.equals(newPageEntity.getType())) {
 
@@ -221,61 +222,6 @@ public class PageServiceImpl extends TransactionalService implements PageService
 			//only one homepage is allowed
 			onlyOneHomepage(page);
 			createAuditLog(apiId, PAGE_CREATED, page.getCreatedAt(), null, page);
-			PageEntity pageEntity = convert(createdPage);
-
-			// add document in search engine
-			searchEngineService.index(pageEntity);
-
-			return pageEntity;
-		} catch (TechnicalException | FetcherException ex) {
-			logger.error("An error occurs while trying to create {}", newPageEntity, ex);
-			throw new TechnicalManagementException("An error occurs while trying create " + newPageEntity, ex);
-		}
-	}
-
-	@Override
-	public PageEntity createPortalPage(NewPageEntity newPageEntity) {
-		try {
-			logger.debug("Create portal page {}", newPageEntity);
-
-			String id = UUID.toString(UUID.random());
-			Optional<Page> checkPage = pageRepository.findById(id);
-			if (checkPage.isPresent()) {
-				throw new PageAlreadyExistsException(id);
-			}
-
-			if (PageType.FOLDER.equals(newPageEntity.getType())) {
-
-			    if (newPageEntity.getContent() != null  && newPageEntity.getContent().length() > 0) {
-                    throw new PageFolderActionException("have a content");
-                }
-
-                if (newPageEntity.isHomepage()) {
-                    throw new PageFolderActionException("be affected to the home page");
-                }
-            }
-
-			Page page = convert(newPageEntity);
-
-			if (page.getSource() != null) {
-				String fetchedContent = this.getContentFromFetcher(page.getSource());
-				if (fetchedContent != null && !fetchedContent.isEmpty()) {
-					page.setContent(fetchedContent);
-				}
-			}
-
-			page.setId(id);
-
-			// Set date fields
-			page.setCreatedAt(new Date());
-			page.setUpdatedAt(page.getCreatedAt());
-
-			Page createdPage = pageRepository.create(page);
-
-			//only one homepage is allowed
-			onlyOneHomepage(page);
-			createAuditLog(null, PAGE_CREATED, page.getCreatedAt(), null, page);
-
 			PageEntity pageEntity = convert(createdPage);
 
 			// add document in search engine
@@ -371,20 +317,123 @@ public class PageServiceImpl extends TransactionalService implements PageService
 		}
 	}
 
+
+	@Override
+	public List<PageEntity> importDirectory(NewPageEntity pageEntity) {
+		return importDirectory(null, pageEntity);
+	}
+
+	@Override
+	public List<PageEntity> importDirectory(String apiId, NewPageEntity pageEntity) {
+		upsertRootPage(apiId, pageEntity);
+
+		try {
+			Page page = convert(pageEntity);
+			Fetcher fetcher = this.getFetcher(page.getSource());
+			if (fetcher == null) {
+				return emptyList();
+			}
+
+			ObjectMapper mapper = new ObjectMapper();
+			String[] files = fetcher.files();
+			Map<String, String> parentsIds = new HashMap<>();
+
+			List<PageEntity> createdPages = new ArrayList<>();
+			// for each files returned by the fetcher
+			for (String file : files) {
+				String[] extensions = file.split("\\.");
+				if (extensions.length > 0) {
+					PageType supportedPageType = getSupportedPageType(extensions[extensions.length - 1]);
+
+					// if the file is supported by gravitee
+					if (supportedPageType != null) {
+						String[] pathElements = file.split("/");
+						String pwd = "";
+
+						//create each folders before the page itself
+						for (String pathElement : pathElements) {
+							if (!pathElement.isEmpty()) {
+								String futurePwd = pwd + ("/" + pathElement);
+
+								// prepare new page (folder or not)
+								NewPageEntity newPage = new NewPageEntity();
+								newPage.setParentId(parentsIds.get(pwd));
+								newPage.setPublished(pageEntity.isPublished());
+								newPage.setLastContributor(pageEntity.getLastContributor());
+
+								// if we have reached the end of path, create the page
+								if (file.equals(futurePwd)) {
+									newPage.setName(pathElement.substring(0, pathElement.lastIndexOf(".")));
+									newPage.setType(supportedPageType);
+
+									FetcherConfiguration configuration = fetcher.getConfiguration();
+									configuration.setFilepath(futurePwd);
+									newPage.setSource(pageEntity.getSource());
+									newPage.getSource().setConfiguration(mapper.valueToTree(configuration));
+
+									createdPages.add(this.createPage(apiId, newPage));
+								}
+
+								// or create an intermediate directory
+								else {
+									if (!parentsIds.containsKey(futurePwd)) {
+										newPage.setName(pathElement);
+										newPage.setType(PageType.FOLDER);
+										PageEntity folder = this.createPage(apiId, newPage);
+										parentsIds.put(futurePwd, folder.getId());
+									}
+									pwd = futurePwd;
+								}
+							}
+						}
+					}
+				}
+			}
+			return createdPages;
+		} catch (FetcherException ex) {
+			logger.error("An error occurs while trying to import a directory",ex);
+			throw new TechnicalManagementException("An error occurs while trying import a directory" , ex);
+		}
+	}
+
+	private void upsertRootPage(String apiId, NewPageEntity rootPage) {
+	    try {
+			// root page exists ?
+			List<Page> searchResult = pageRepository.search(new PageCriteria.Builder()
+					.api(apiId)
+					.type(PageType.ROOT.name())
+					.build());
+
+			Page page = convert(rootPage);
+			page.setApi(apiId);
+			if (searchResult.isEmpty()) {
+				page.setId(UUID.toString(UUID.random()));
+				pageRepository.create(page);
+			} else {
+				page.setId(searchResult.get(0).getId());
+				pageRepository.update(page);
+			}
+		} catch (TechnicalException ex) {
+			logger.error("An error occurs while trying to save the configuration",ex);
+			throw new TechnicalManagementException("An error occurs while trying to save the configuration" , ex);
+		}
+	}
+
+	private PageType getSupportedPageType(String extension) {
+		for (PageType pageType: PageType.values()) {
+			if (pageType.extensions().contains(extension.toLowerCase())) {
+				return pageType;
+			}
+		}
+		return null;
+	}
+
 	private String getContentFromFetcher(PageSource ps) throws FetcherException {
-		if (ps.getConfiguration().isEmpty()) {
+		Fetcher fetcher = this.getFetcher(ps);
+		if (fetcher == null) {
 			return null;
 		}
 		try {
-			FetcherPlugin fetcherPlugin = fetcherPluginManager.get(ps.getType());
-			ClassLoader fetcherCL = fetcherPlugin.fetcher().getClassLoader();
-			Class<? extends FetcherConfiguration> fetcherConfigurationClass = (Class<? extends FetcherConfiguration>) fetcherCL.loadClass(fetcherPlugin.configuration().getName());
-			Class<? extends Fetcher> fetcherClass = (Class<? extends Fetcher>) fetcherCL.loadClass(fetcherPlugin.clazz());
-			FetcherConfiguration fetcherConfigurationInstance = fetcherConfigurationFactory.create(fetcherConfigurationClass, ps.getConfiguration());
-			Fetcher fetcher = fetcherClass.getConstructor(fetcherConfigurationClass).newInstance(fetcherConfigurationInstance);
-			// Autowire fetcher
-			applicationContext.getAutowireCapableBeanFactory().autowireBean(fetcher);
-
 			StringBuilder sb = new StringBuilder();
 			try (BufferedReader br = new BufferedReader(new InputStreamReader(fetcher.fetch()))) {
 				String line;
@@ -397,6 +446,26 @@ public class PageServiceImpl extends TransactionalService implements PageService
 		} catch (Exception e) {
 		    logger.error(e.getMessage(), e);
             throw new FetcherException(e.getMessage(), e);
+		}
+	}
+
+	private Fetcher getFetcher(PageSource ps) throws FetcherException {
+		if (ps.getConfiguration().isEmpty()) {
+			return null;
+		}
+		try {
+			FetcherPlugin fetcherPlugin = fetcherPluginManager.get(ps.getType());
+			ClassLoader fetcherCL = fetcherPlugin.fetcher().getClassLoader();
+			Class<? extends FetcherConfiguration> fetcherConfigurationClass = (Class<? extends FetcherConfiguration>) fetcherCL.loadClass(fetcherPlugin.configuration().getName());
+			Class<? extends Fetcher> fetcherClass = (Class<? extends Fetcher>) fetcherCL.loadClass(fetcherPlugin.clazz());
+			FetcherConfiguration fetcherConfigurationInstance = fetcherConfigurationFactory.create(fetcherConfigurationClass, ps.getConfiguration());
+			Fetcher fetcher = fetcherClass.getConstructor(fetcherConfigurationClass).newInstance(fetcherConfigurationInstance);
+			// Autowire fetcher
+			applicationContext.getAutowireCapableBeanFactory().autowireBean(fetcher);
+			return fetcher;
+		} catch (Exception e) {
+			logger.error(e.getMessage(), e);
+			throw new FetcherException(e.getMessage(), e);
 		}
 	}
 
@@ -684,7 +753,6 @@ public class PageServiceImpl extends TransactionalService implements PageService
 						updatePageEntity.getParentId().isEmpty() ?
 							null :updatePageEntity.getParentId()
 						: withUpdatePage.getParentId()
-
         );
 
         return page;
@@ -724,7 +792,7 @@ public class PageServiceImpl extends TransactionalService implements PageService
 			try {
 				entity.setConfiguration((new ObjectMapper()).readTree(pageSource.getConfiguration()));
 			} catch (IOException e) {
-			    logger.error(e.getMessage(), e);
+				logger.error(e.getMessage(), e);
 			}
 		}
 		return entity;

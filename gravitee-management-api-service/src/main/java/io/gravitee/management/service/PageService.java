@@ -15,6 +15,7 @@
  */
 package io.gravitee.management.service;
 
+import io.gravitee.fetcher.api.FetcherException;
 import io.gravitee.management.model.*;
 import io.gravitee.management.model.api.ApiEntity;
 import io.gravitee.management.model.documentation.PageQuery;
@@ -37,9 +38,9 @@ public interface PageService {
 
 	void transformSwagger(PageEntity pageEntity, String apiId);
 
-	PageEntity createApiPage(String apiId, NewPageEntity page);
+	PageEntity createPage(String apiId, NewPageEntity page);
 
-	PageEntity createPortalPage(NewPageEntity page);
+	PageEntity createPage(NewPageEntity page);
 	
 	PageEntity update(String pageId, UpdatePageEntity updatePageEntity);
 
@@ -54,4 +55,8 @@ public interface PageService {
 	boolean isDisplayable(ApiEntity api, boolean isPagePublished, String username);
 
 	PageEntity fetch(String pageId, String contributor);
+
+	List<PageEntity> importDirectory(NewPageEntity pageEntity);
+
+	List<PageEntity> importDirectory(String apiId, NewPageEntity pageEntity);
 }

@@ -13,30 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.gravitee.management.fetcher;
+package io.gravitee.management.service;
 
 import io.gravitee.fetcher.api.FetcherConfiguration;
 
 /**
- * @author Nicolas GERAUD (nicolas.geraud [at] graviteesource [dot] com) 
+ * @author Nicolas GERAUD (nicolas.geraud at graviteesource.com) 
  * @author GraviteeSource Team
  */
-public class DummyFetcherConfiguration implements FetcherConfiguration {
+public class PageService_MockFetcherConfiguration implements FetcherConfiguration {
 
-    private int value;
-
-    public int getValue() {
-        return value;
-    }
-
-    public void setValue(int value) {
-        this.value = value;
-    }
-
+    @Override
     public String getFilepath() {
         return null;
     }
 
+    @Override
     public void setFilepath(String filepath) {
 
     }
