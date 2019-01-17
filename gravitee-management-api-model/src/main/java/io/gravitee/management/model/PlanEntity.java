@@ -15,6 +15,7 @@
  */
 package io.gravitee.management.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.gravitee.definition.model.Path;
 
@@ -80,6 +81,12 @@ public class PlanEntity {
 
     @JsonProperty("excluded_groups")
     private List<String> excludedGroups;
+
+    /**
+     * last time modification introduced an api redeployment
+     */
+    @JsonIgnore
+    private Date lastNeedRedeployDate;
 
     public String getId() {
         return id;
@@ -215,6 +222,14 @@ public class PlanEntity {
 
     public void setExcludedGroups(List<String> excludedGroups) {
         this.excludedGroups = excludedGroups;
+    }
+
+    public Date getLastNeedRedeployDate() {
+        return lastNeedRedeployDate;
+    }
+
+    public void setLastNeedRedeployDate(Date lastNeedRedeployDate) {
+        this.lastNeedRedeployDate = lastNeedRedeployDate;
     }
 
     @Override

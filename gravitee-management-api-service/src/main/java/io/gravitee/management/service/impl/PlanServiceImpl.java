@@ -156,6 +156,7 @@ public class PlanServiceImpl extends TransactionalService implements PlanService
             plan.setDescription(newPlan.getDescription());
             plan.setCreatedAt(new Date());
             plan.setUpdatedAt(plan.getCreatedAt());
+            plan.setLastNeedRedeployDate(plan.getCreatedAt());
             plan.setType(Plan.PlanType.valueOf(newPlan.getType().name()));
             plan.setSecurity(Plan.PlanSecurityType.valueOf(newPlan.getSecurity().name()));
             plan.setSecurityDefinition(newPlan.getSecurityDefinition());
@@ -217,6 +218,7 @@ public class PlanServiceImpl extends TransactionalService implements PlanService
             newPlan.setCreatedAt(oldPlan.getCreatedAt());
             newPlan.setPublishedAt(oldPlan.getPublishedAt());
             newPlan.setClosedAt(oldPlan.getClosedAt());
+            newPlan.setLastNeedRedeployDate(oldPlan.getLastNeedRedeployDate());
 
             // update datas
             newPlan.setName(updatePlan.getName());
@@ -244,6 +246,9 @@ public class PlanServiceImpl extends TransactionalService implements PlanService
                 reorderAndSavePlans(newPlan);
                 return null;
             } else {
+                if (needToRedeployApi(oldPlan, newPlan)) {
+                    newPlan.setLastNeedRedeployDate(newPlan.getUpdatedAt());
+                }
                 newPlan = planRepository.update(newPlan);
                 auditService.createApiAuditLog(
                         newPlan.getApis().iterator().next(),
@@ -264,6 +269,10 @@ public class PlanServiceImpl extends TransactionalService implements PlanService
             throw new TechnicalManagementException(String.format(
                     "An error occurs while trying to update a plan %s", updatePlan.getName()), jse);
         }
+    }
+
+    private boolean needToRedeployApi(Plan oldPlan, Plan newPlan) {
+        return true;
     }
 
     @Override
@@ -287,6 +296,7 @@ public class PlanServiceImpl extends TransactionalService implements PlanService
             plan.setStatus(Plan.Status.CLOSED);
             plan.setClosedAt(new Date());
             plan.setUpdatedAt(plan.getClosedAt());
+            plan.setLastNeedRedeployDate(plan.getClosedAt());
 
             // Close active subscriptions and reject pending
             if (plan.getSecurity() != Plan.PlanSecurityType.KEY_LESS) {
@@ -411,6 +421,7 @@ public class PlanServiceImpl extends TransactionalService implements PlanService
 
             plan.setPublishedAt(new Date());
             plan.setUpdatedAt(plan.getPublishedAt());
+            plan.setLastNeedRedeployDate(plan.getPublishedAt());
 
             // Save plan
             plan = planRepository.update(plan);
