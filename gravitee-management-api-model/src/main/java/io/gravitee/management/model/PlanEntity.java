@@ -23,6 +23,7 @@ import java.util.*;
 
 /**
  * @author David BRASSELY (david.brassely at graviteesource.com)
+ * @author Nicolas GERAUD (nicolas.geraud at graviteesource.com)
  * @author GraviteeSource Team
  */
 public class PlanEntity {
@@ -38,14 +39,18 @@ public class PlanEntity {
      */
     private PlanValidationType validation;
 
+    @DeploymentRequired
     private PlanSecurityType security;
 
+    @DeploymentRequired
     private String securityDefinition;
 
     private PlanType type;
 
+    @DeploymentRequired
     private PlanStatus status;
 
+    @DeploymentRequired
     private Set<String> apis;
 
     private int order;
@@ -74,6 +79,7 @@ public class PlanEntity {
     @JsonProperty("closed_at")
     private Date closedAt;
 
+    @DeploymentRequired
     @JsonProperty(value = "paths", required = true)
     private Map<String, Path> paths = new HashMap<>();
 
@@ -86,7 +92,7 @@ public class PlanEntity {
      * last time modification introduced an api redeployment
      */
     @JsonIgnore
-    private Date lastNeedRedeployDate;
+    private Date needRedeployAt;
 
     public String getId() {
         return id;
@@ -224,12 +230,12 @@ public class PlanEntity {
         this.excludedGroups = excludedGroups;
     }
 
-    public Date getLastNeedRedeployDate() {
-        return lastNeedRedeployDate;
+    public Date getNeedRedeployAt() {
+        return needRedeployAt;
     }
 
-    public void setLastNeedRedeployDate(Date lastNeedRedeployDate) {
-        this.lastNeedRedeployDate = lastNeedRedeployDate;
+    public void setNeedRedeployAt(Date needRedeployAt) {
+        this.needRedeployAt = needRedeployAt;
     }
 
     @Override
