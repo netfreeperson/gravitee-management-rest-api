@@ -36,10 +36,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -80,6 +77,7 @@ public class LogsServiceImpl implements LogsService {
 
     @Override
     public SearchLogResponse findByApi(String api, LogQuery query) {
+        restrictEndDate(query);
         try {
             TabularResponse response = logRepository.query(
                     QueryBuilders.tabular()
@@ -138,6 +136,7 @@ public class LogsServiceImpl implements LogsService {
 
     @Override
     public SearchLogResponse findByApplication(String application, LogQuery query) {
+        restrictEndDate(query);
         try {
             TabularResponse response = logRepository.query(
                     QueryBuilders.tabular()
@@ -437,5 +436,11 @@ public class LogsServiceImpl implements LogsService {
         req.setMetadata(metadata);
 
         return req;
+    }
+    private void restrictEndDate(io.gravitee.management.model.analytics.query.AbstractQuery q) {
+        long now = System.currentTimeMillis();
+        if (q.getTo() > now) {
+            q.setTo(now);
+        }
     }
 }

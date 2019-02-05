@@ -74,6 +74,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     public HitsAnalytics execute(CountQuery query) {
+        restrictEndDate(query);
         try {
             CountResponse response = analyticsRepository.query(
                     QueryBuilders.count()
@@ -94,6 +95,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     public HistogramAnalytics execute(DateHistogramQuery query) {
+        restrictEndDate(query);
         try {
             DateHistogramQueryBuilder queryBuilder = QueryBuilders.dateHistogram()
                     .query(query.getQuery())
@@ -120,6 +122,7 @@ public class AnalyticsServiceImpl implements AnalyticsService {
 
     @Override
     public TopHitsAnalytics execute(GroupByQuery query) {
+        restrictEndDate(query);
         try {
             GroupByQueryBuilder queryBuilder = QueryBuilders.groupBy()
                     .query(query.getQuery())
@@ -353,4 +356,10 @@ public class AnalyticsServiceImpl implements AnalyticsService {
         return metadata;
     }
 
+    private void restrictEndDate(io.gravitee.management.model.analytics.query.AbstractQuery q) {
+        long now = System.currentTimeMillis();
+        if (q.getTo() > now) {
+            q.setTo(now);
+        }
+    }
 }
