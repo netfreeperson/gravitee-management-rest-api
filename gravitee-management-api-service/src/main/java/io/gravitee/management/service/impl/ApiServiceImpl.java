@@ -29,9 +29,9 @@ import io.gravitee.definition.model.Path;
 import io.gravitee.definition.model.Proxy;
 import io.gravitee.definition.model.endpoint.HttpEndpoint;
 import io.gravitee.management.idp.api.identity.SearchableUser;
-import io.gravitee.management.model.*;
 import io.gravitee.management.model.EventType;
 import io.gravitee.management.model.PageType;
+import io.gravitee.management.model.*;
 import io.gravitee.management.model.api.ApiEntity;
 import io.gravitee.management.model.api.ApiQuery;
 import io.gravitee.management.model.api.NewApiEntity;
@@ -56,8 +56,8 @@ import io.gravitee.repository.management.api.ApiRepository;
 import io.gravitee.repository.management.api.MembershipRepository;
 import io.gravitee.repository.management.api.search.ApiCriteria;
 import io.gravitee.repository.management.api.search.ApiFieldExclusionFilter;
-import io.gravitee.repository.management.model.*;
 import io.gravitee.repository.management.model.Visibility;
+import io.gravitee.repository.management.model.*;
 import org.apache.commons.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -788,8 +788,6 @@ public class ApiServiceImpl extends TransactionalService implements ApiService {
             // Members
             final JsonNode membersDefinition = jsonNode.path("members");
             if (membersDefinition != null && membersDefinition.isArray()) {
-                MemberEntity memberAsPrimaryOwner = null;
-
                 for (final JsonNode memberNode : membersDefinition) {
                     MemberToImport memberEntity = objectMapper.readValue(memberNode.toString(), MemberToImport.class);
                     Collection<SearchableUser> idpUsers = identityService.search(memberEntity.getUsername());
@@ -806,18 +804,15 @@ public class ApiServiceImpl extends TransactionalService implements ApiService {
                                     new MembershipService.MembershipUser(user.getId(), user.getReference()),
                                     new MembershipService.MembershipRole(RoleScope.API, memberEntity.getRole()));
                             if (SystemRole.PRIMARY_OWNER.name().equals(memberEntity.getRole())) {
-                                // Get the identifier of the primary owner
-                                memberAsPrimaryOwner = membership;
+                                // Transfer ownership if necessary
+                                if (membership != null && !userId.equals(membership.getId())) {
+                                    membershipService.transferApiOwnership(createdOrUpdatedApiEntity.getId(),
+                                            new MembershipService.MembershipUser(membership.getId(), null),
+                                            null);
+                                }
                             }
                         }
                     }
-                }
-
-                // Transfer ownership if necessary
-                if (memberAsPrimaryOwner != null && !userId.equals(memberAsPrimaryOwner.getId())) {
-                    membershipService.transferApiOwnership(createdOrUpdatedApiEntity.getId(),
-                            new MembershipService.MembershipUser(memberAsPrimaryOwner.getId(), null),
-                            null);
                 }
             }
 
@@ -869,9 +864,10 @@ public class ApiServiceImpl extends TransactionalService implements ApiService {
             }
             return createdOrUpdatedApiEntity;
         } catch (final IOException e) {
-            LOGGER.error("An error occurs while trying to JSON deserialize the API {}", apiDefinition, e);
+            final String error = "Invalid JSON definition";
+            LOGGER.error(error, e);
+            throw new IllegalStateException(error, e);
         }
-        return null;
     }
 
     @Override
